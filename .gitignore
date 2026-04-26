@@ -1,0 +1,55 @@
+# OS & Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Environment Variables
+.env
+.env.backup
+.env.production
+.env.*
+!.env.example
+
+# Service Configuration & Data
+# Ignore data directories inside services
+services/*/data/
+services/*/logs/
+services/caddy/certs/
+
+# Explicitly ignore known data folders
+services/*/data/
+
+# Application Dependencies
+node_modules/
+vendor/
+
+apps/*/node_modules/
+apps/*/vendor/
+apps/*/dist/
+apps/*/build/
+
+tools/*/vendor/
+
+# Build & Cache
+dist/
+build/
+coverage/
+
+# Backups
+backups/
+*.sql
+*.tar.gz
+*.log
+
+# Restore Temp Directories (Created by manager.sh)
+apps_backup_*/
+services_backup_*/
+
+bin/
+
+retaliq
+retaliq-*
+
+cmd/*
+
+pentest/reports/*

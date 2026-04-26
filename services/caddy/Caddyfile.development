@@ -1,0 +1,82 @@
+# Caddy Development Configuration with caddy-waf + Local Certificates
+{
+	# Disable automatic HTTPS / ACME for development with local certs
+	auto_https off
+	
+	# Security settings
+	servers {
+		protocols h1 h2 h2c h3
+	}
+	
+	# Ensure WAF middleware runs before other handlers
+	order waf first
+}
+
+# WAF configuration snippet for development
+(waf) {
+	waf {
+		rule_file /etc/caddy/waf/rules-dev.json
+		# ip_blacklist_file /etc/caddy/waf/ip_blacklist.txt
+		# dns_blacklist_file /etc/caddy/waf/dns_blacklist.txt
+		metrics_endpoint /waf_metrics
+		# Development mode: inspect and log aggressively, avoid blocking normal dev flows.
+		anomaly_threshold 10000
+		log_severity info
+		log_path /var/log/caddy/waf.log
+		log_json
+		redact_sensitive_data
+	}
+}
+
+# Security headers snippet
+(security-headers) {
+	header {
+		# Remove server information
+		-Server
+		
+		# Security headers
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.bunny.net; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.bunny.net; connect-src 'self' wss: https:; worker-src 'self' blob:;"
+	}
+}
+
+# Local TLS snippet — uses self-signed wildcard cert
+(app-cert-tls) {
+	tls /etc/caddy/certs/retaliq.test.crt /etc/caddy/certs/retaliq.test.key {
+		protocols tls1.2 tls1.3
+	}
+}
+
+(tls-waf-security-headers) {
+	# import bypass-head-dev
+    # import waf
+	import app-cert-tls
+	import security-headers
+}
+
+(tls-security-headers) {
+	import app-cert-tls
+	import security-headers
+}
+
+(bypass-head-dev) {
+	@head method HEAD
+
+	handle @head {
+		respond "" 200
+	}
+}
+
+# Redirect all HTTP to HTTPS
+http:// {
+	redir https://{host}{uri} 301
+}
+
+# Domain and subdomain site blocks
+import /etc/caddy/sites/services/main.conf
+import /etc/caddy/sites/apps/development/main.conf

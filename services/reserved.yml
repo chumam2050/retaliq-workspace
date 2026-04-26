@@ -1,0 +1,51 @@
+services:
+    - minio:
+        - name: MinIO server
+        - description: A high-performance, S3 compatible object storage server.
+        - hostname: minio.${DOMAIN_NAME:-localhost}
+        - port: 9000
+    - s3:
+        - name: S3 API
+        - description: An S3 compatible API for object storage.
+        - hostname: s3.${DOMAIN_NAME:-localhost}
+        - port: 9001
+    - ws:
+        - name: WebSocket server
+        - description: A server for handling WebSocket connections.
+        - hostname: ws.${DOMAIN_NAME:-localhost}
+        - port: 6001
+    - stalwart:
+        - name: Mail server
+        - description: A server for sending and receiving emails.
+        - hostname: stalwart.${DOMAIN_NAME:-localhost}
+        - port: 8080
+    - webmail:
+        - name: Webmail client
+        - description: A web-based email client for accessing the mail server.
+        - hostname: webmail.${DOMAIN_NAME:-localhost}
+        - port: 8081
+    - log:
+        - name: Log server
+        - description: An open-source error tracking and monitoring tool.
+        - hostname: log.${DOMAIN_NAME:-localhost}
+        - port: 8082
+    - mariadb:
+        - name: MariaDB
+        - description: A popular open-source relational database management system.
+        - hostname: null
+        - port: 3306
+    - redis:
+        - name: Redis
+        - description: An in-memory data structure store, used as a database, cache, and message broker.
+        - hostname: null
+        - port: 6379
+    - postgres:
+        - name: PostgreSQL
+        - description: A powerful, open-source object-relational database system.
+        - hostname: null
+        - port: 5432
+    - nettacker:
+        - name: OWASP Nettacker
+        - description: Automated penetration testing framework with API and web UI.
+        - hostname: null
+        - port: 5000

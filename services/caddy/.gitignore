@@ -1,0 +1,16 @@
+# Caddy generated files
+data/
+config/
+
+# WAF logs
+*.log
+
+# Certificates (if local development)
+certs/*.pem
+certs/*.key
+certs/*.crt
+!certs/.gitkeep
+
+# Backup files
+*.bak
+*~

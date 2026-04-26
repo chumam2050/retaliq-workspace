@@ -1,0 +1,386 @@
+services:
+
+  # -------------------------------------------------------------------------
+  # GATEWAY (Caddy)
+  # -------------------------------------------------------------------------
+  caddy:
+    image: choerul/caddy-waf-cloudflare
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile.development:/etc/caddy/Caddyfile.development:ro
+      - ./caddy/Caddyfile.staging:/etc/caddy/Caddyfile.staging:ro
+      - ./caddy/Caddyfile.production:/etc/caddy/Caddyfile.production:ro
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+      - ./caddy/sites:/etc/caddy/sites
+      - ./caddy/certs:/etc/caddy/certs
+      - ./caddy/logs:/var/log/caddy
+      - ./caddy/waf:/etc/caddy/waf
+    environment:
+      - RETALIQ_ENV=${RETALIQ_ENV:-development}
+      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+      - SSL_EMAIL_RENEWAL=${SSL_EMAIL_RENEWAL}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - retaliq-net
+
+  # -------------------------------------------------------------------------
+  # DATABASES
+  # -------------------------------------------------------------------------
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+    volumes:
+      - ./mariadb/data:/var/lib/mysql
+      - ./mariadb/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - retaliq-net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/conf:/etc/postgresql
+      - ./postgres/initdb:/docker-entrypoint-initdb.d
+    networks:
+      - retaliq-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --aof-load-truncated yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/data:/data
+    networks:
+      - retaliq-net
+
+  # -------------------------------------------------------------------------
+  # OBJECT STORAGE
+  # -------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+    volumes:
+      - ./minio/data:/data
+    networks:
+      - retaliq-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - retaliq-net
+    volumes:
+      - ./minio/create-buckets.sh:/create-buckets.sh
+    entrypoint: ["/bin/sh", "/create-buckets.sh"]
+    environment:
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKETS: "${STALWART_MINIO_BUCKET:-stalwart},${GLITCHTIP_BUCKET_NAME:-glitchtip}"
+
+  # -------------------------------------------------------------------------
+  # MESSAGING & MAIL
+  # -------------------------------------------------------------------------
+
+  soketi:
+    image: quay.io/soketi/soketi:latest-16-alpine
+    container_name: soketi
+    restart: unless-stopped
+    environment:
+      SOKETI_DEBUG: "1"
+      SOKETI_HOST: "0.0.0.0"
+      # Keep original vars if needed by custom scripts or specific soketi versions
+      SOKETI_APP_MANAGER_DRIVER: ${SOKETI_APP_MANAGER_DRIVER}
+      SOKETI_DB_POSTGRES_HOST: ${SOKETI_DB_POSTGRES_HOST}
+      SOKETI_DB_POSTGRES_PORT: ${SOKETI_DB_POSTGRES_PORT}
+      SOKETI_DB_POSTGRES_USERNAME: ${SOKETI_DB_POSTGRES_USERNAME}
+      SOKETI_DB_POSTGRES_PASSWORD: ${SOKETI_DB_POSTGRES_PASSWORD}
+      SOKETI_DB_POSTGRES_DATABASE: ${SOKETI_DB_POSTGRES_DATABASE}
+      SOKETI_DEFAULT_APP_ID: ${SOKETI_DEFAULT_APP_ID}
+      SOKETI_DEFAULT_APP_KEY: ${SOKETI_DEFAULT_APP_KEY}
+      SOKETI_DEFAULT_APP_SECRET: ${SOKETI_DEFAULT_APP_SECRET}
+    ports:
+      - "6001:6001"
+    networks:
+      - retaliq-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  stalwart:
+    image: stalwartlabs/stalwart:latest
+    container_name: stalwart
+    restart: unless-stopped
+    environment:
+      STALWART_DB_HOST: ${STALWART_DB_HOST}
+      STALWART_DB_PORT: ${STALWART_DB_PORT}
+      STALWART_DB_USER: ${STALWART_DB_USER}
+      STALWART_DB_PASSWORD: ${STALWART_DB_PASSWORD}
+      STALWART_DB_NAME: ${STALWART_DB_NAME}
+      STALWART_MINIO_BUCKET: ${STALWART_MINIO_BUCKET}
+      STALWART_MINIO_ENDPOINT: ${STALWART_MINIO_ENDPOINT}
+      STALWART_MINIO_ACCESS_KEY: ${STALWART_MINIO_ACCESS_KEY}
+      STALWART_MINIO_SECRET_KEY: ${STALWART_MINIO_SECRET_KEY}
+      STALWART_MINIO_REGION: ${STALWART_MINIO_REGION}
+    ports:
+      - 8081:8080
+      - 25:25
+      - 587:587
+      - 465:465
+      - 143:143
+      - 993:993
+      - 4190:4190
+      - 110:110
+      - 995:995
+    volumes:
+      - ./stalwart/data:/opt/stalwart/data
+      - ./stalwart/logs:/opt/stalwart/logs
+      - ./stalwart/etc:/opt/stalwart/etc
+    networks:
+      - retaliq-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  roundcube:
+    image: roundcube/roundcubemail:latest
+    container_name: roundcube
+    restart: unless-stopped
+    ports:
+      - "8001:80"
+    depends_on:
+      - postgres
+      - stalwart
+    environment:
+      - ROUNDCUBEMAIL_DB_TYPE=${ROUNDCUBE_DB_TYPE}
+      - ROUNDCUBEMAIL_DB_HOST=${ROUNDCUBE_DB_HOST}
+      - ROUNDCUBEMAIL_DB_PORT=${ROUNDCUBE_DB_PORT}
+      - ROUNDCUBEMAIL_DB_USER=${ROUNDCUBE_DB_USER}
+      - ROUNDCUBEMAIL_DB_PASSWORD=${ROUNDCUBE_DB_PASSWORD}
+      - ROUNDCUBEMAIL_DB_NAME=${ROUNDCUBE_DB_NAME}
+      - ROUNDCUBEMAIL_DEFAULT_HOST=${ROUNDCUBE_DEFAULT_HOST}
+      - ROUNDCUBEMAIL_DEFAULT_PORT=${ROUNDCUBE_DEFAULT_PORT}
+      - ROUNDCUBEMAIL_SMTP_SERVER=${ROUNDCUBE_SMTP_SERVER}
+      - ROUNDCUBEMAIL_SMTP_PORT=${ROUNDCUBE_SMTP_PORT}
+      - ROUNDCUBEMAIL_USERNAME_DOMAIN=${ROUNDCUBE_USERNAME_DOMAIN}
+      # - ROUNDCUBEMAIL_PLUGINS=archive,zipdownload # Use env var if possible, or keep hardcoded if env var not set properly
+      - ROUNDCUBEMAIL_PLUGINS=${ROUNDCUBE_PLUGINS}
+      - ROUNDCUBEMAIL_SESSION_SAME_SITE=${ROUNDCUBE_SESSION_SAME_SITE}
+      - ROUNDCUBEMAIL_SESSION_DOMAIN=${ROUNDCUBE_SESSION_DOMAIN}
+    volumes:
+      - ./roundcube/config:/var/www/html/config
+      - ./roundcube/extra/custom.php:/var/roundcube/config/custom.php
+    networks:
+      - retaliq-net
+
+  # -------------------------------------------------------------------------
+  # SECURITY TESTING (OWASP Nettacker)
+  # -------------------------------------------------------------------------
+  # nettacker:
+  #   image: owasp/nettacker:${NETTACKER_TAG:-latest}
+  #   container_name: nettacker
+  #   restart: unless-stopped
+  #   command: ["poetry", "run", "python", "./nettacker.py", "--start-api"]
+  #   ports:
+  #     - "${NETTACKER_PORT:-5000}:5000"
+  #   volumes:
+  #     - ./nettacker/data:/usr/src/owaspnettacker/.data
+  #   networks:
+  #     - retaliq-net
+
+  # -------------------------------------------------------------------------
+  # OBSERVABILITY (GlitchTip - Sentry alternative)
+  # -------------------------------------------------------------------------
+  glitchtip:
+    image: glitchtip/glitchtip:6
+    container_name: glitchtip
+    restart: unless-stopped
+    volumes:
+      - ./glitchtip/create-superuser.sh:/code/bin/create-superuser.sh
+    environment:
+      DATABASE_URL: postgres://${GLITCHTIP_DB_USER}:${GLITCHTIP_DB_PASSWORD}@postgres:${GLITCHTIP_DB_PORT:-5432}/${GLITCHTIP_DB_NAME}
+      REDIS_URL: ${GLITCHTIP_REDIS_URL}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      ENABLE_USER_REGISTRATION: "False"
+      DEFAULT_FILE_STORAGE: storages.backends.s3boto3.S3Boto3Storage
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_STORAGE_BUCKET_NAME: ${GLITCHTIP_BUCKET_NAME:-glitchtip}
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      SECURE_PROXY_SSL_HEADER: HTTP_X_FORWARDED_PROTO,https
+      AWS_S3_USE_SSL: "False"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - retaliq-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import http.client; conn = http.client.HTTPConnection('localhost', 8000); conn.request('GET', '/'); res = conn.getresponse(); exit(0 if res.status == 200 else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:6
+    container_name: glitchtip-worker
+    restart: unless-stopped
+    command: ./bin/run-celery-with-beat.sh
+    environment:
+      DATABASE_URL: postgres://${GLITCHTIP_DB_USER}:${GLITCHTIP_DB_PASSWORD}@postgres:${GLITCHTIP_DB_PORT:-5432}/${GLITCHTIP_DB_NAME}
+      REDIS_URL: ${GLITCHTIP_REDIS_URL}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      PORT: 8000
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      DEFAULT_FILE_STORAGE: storages.backends.s3boto3.S3Boto3Storage
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_STORAGE_BUCKET_NAME: ${GLITCHTIP_BUCKET_NAME:-glitchtip}
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      AWS_S3_USE_SSL: "False"
+    depends_on:
+      glitchtip:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - retaliq-net
+
+  glitchtip-migrate:
+    image: glitchtip/glitchtip:6
+    container_name: glitchtip-migrate
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - "./bin/run-migrate.sh"
+    volumes:
+      - ./glitchtip/run-migrate.sh:/code/bin/run-migrate.sh:ro
+      - ./glitchtip/create-superuser.sh:/code/bin/create-superuser.sh:ro
+      - ./glitchtip/superuser-trigger.log:/tmp/glitchtip-create-superuser-triggered.log
+    environment:
+      DATABASE_URL: postgres://${GLITCHTIP_DB_USER}:${GLITCHTIP_DB_PASSWORD}@postgres:${GLITCHTIP_DB_PORT:-5432}/${GLITCHTIP_DB_NAME}
+      REDIS_URL: ${GLITCHTIP_REDIS_URL}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      PORT: 8000
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL}
+      EMAIL_URL: smtp://stalwart:25
+      DEFAULT_FILE_STORAGE: storages.backends.s3boto3.S3Boto3Storage
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_STORAGE_BUCKET_NAME: ${GLITCHTIP_BUCKET_NAME:-glitchtip}
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      AWS_S3_USE_SSL: "False"
+      GLITCHTIP_SUPERUSER_USERNAME: ${GLITCHTIP_SUPERUSER_USERNAME}
+      GLITCHTIP_SUPERUSER_EMAIL: ${GLITCHTIP_SUPERUSER_EMAIL}
+      GLITCHTIP_SUPERUSER_PASSWORD: ${GLITCHTIP_SUPERUSER_PASSWORD}
+    depends_on:
+      glitchtip:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - retaliq-net
+
+  # -------------------------------------------------------------------------
+  # MESSAGE BROKER (RabbitMQ)
+  # -------------------------------------------------------------------------
+  # rabbitmq:
+  #   image: rabbitmq:3-management-alpine
+  #   container_name: rabbitmq
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5672:5672"
+  #     - "15672:15672"
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-retaliq}
+  #     RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-retaliq}
+  #     RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
+  #   volumes:
+  #     - ./rabbitmq/data:/var/lib/rabbitmq
+  #   networks:
+  #     - retaliq-net
+  #   healthcheck:
+  #     test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+
+volumes:
+  mariadb_data:
+  postgres_data:
+  minio_data:
+  # stalwart_data:
+
+networks:
+  retaliq-net:
+    name: retaliq-net
+    driver: bridge

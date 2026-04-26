@@ -1,0 +1,40 @@
+services:
+    project_name-backend:
+        env_file: backend/.env
+        container_name: project_name-backend
+        image: 'choerul/project_name-backend'
+        build:
+            context: backend
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '${BACKEND_PORT:-10000}:${BACKEND_PORT:-10000}'
+        volumes:
+            - ./backend/uploads:/usr/src/app/uploads
+        networks:
+            retaliq-net:
+                aliases:
+                    - project_name-backend
+
+    project_name-frontend:
+        container_name: project_name-frontend
+        image: 'choerul/project_name-frontend'
+        build:
+            context: frontend
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        ports:
+            - '${FRONTEND_PORT:-11000}:${FRONTEND_PORT:-11000}'
+        depends_on:
+            - project_name-backend
+        networks:
+            retaliq-net:
+                aliases:
+                    - project_name-frontend
+
+networks:
+    retaliq-net:
+        name: retaliq-net
+        external: true

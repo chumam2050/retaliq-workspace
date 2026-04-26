@@ -1,0 +1,579 @@
+[
+  {
+    "id": "skip-websocket",
+    "phase": 1,
+    "pattern": "^/(ws|socket)(/|\\?|$)",
+    "targets": [
+      "URI"
+    ],
+    "action": "skip",
+    "score": 0,
+    "description": "Skip WAF for websocket endpoints."
+  },
+  {
+    "id": "skip-static-assets",
+    "phase": 1,
+    "pattern": "(?i)\\.(css|js|map|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf)$",
+    "targets": [
+      "URI"
+    ],
+    "action": "skip",
+    "score": 0,
+    "description": "Skip static assets for performance."
+  },
+  {
+    "id": "monitor-inertia",
+    "phase": 1,
+    "pattern": "(?i)true",
+    "targets": [
+      "HEADERS:X-Inertia"
+    ],
+    "action": "log",
+    "score": 0,
+    "description": "Monitor Inertia.js requests without bypassing WAF."
+  },
+  {
+    "id": "monitor-xhr",
+    "phase": 1,
+    "pattern": "(?i)XMLHttpRequest",
+    "targets": [
+      "HEADERS:X-Requested-With"
+    ],
+    "action": "log",
+    "score": 0,
+    "description": "Monitor AJAX requests without bypassing WAF."
+  },
+  {
+    "id": "laravel-enterprise-01",
+    "phase": 1,
+    "pattern": "(?i)(sqlmap|nikto|acunetix|nessus|netsparker|nmap|dirbuster|gobuster|wfuzz|hydra|metasploit|masscan|zgrab|nuclei|wpscan|whatweb|arachni|burpsuite|zap)",
+    "targets": [
+      "HEADERS:User-Agent"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "Block vulnerability scanners"
+  },
+  {
+    "id": "laravel-enterprise-02",
+    "phase": 1,
+    "pattern": "(?i)(python-requests|scrapy|curl|wget|libwww|go-http-client)",
+    "targets": [
+      "HEADERS:User-Agent"
+    ],
+    "severity": "MEDIUM",
+    "action": "log",
+    "score": 4,
+    "description": "Detect automated scraping tools"
+  },
+  {
+    "id": "laravel-enterprise-03",
+    "phase": 2,
+    "pattern": "(?i)(?:\\.\\./|\\.\\.\\\\|%2e%2e(?:%2f|%5c)|%252e%252e(?:%252f|%255c))",
+    "targets": [
+      "URI",
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 9,
+    "description": "Directory traversal attempt"
+  },
+  {
+    "id": "laravel-enterprise-04",
+    "phase": 2,
+    "pattern": "(?i)(/etc/passwd|/etc/shadow|/proc/self/environ)",
+    "targets": [
+      "URI",
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 9,
+    "description": "Sensitive Linux file access"
+  },
+  {
+    "id": "laravel-enterprise-05",
+    "phase": 1,
+    "pattern": "(?i)(\\.env|\\.git|\\.svn|\\.htaccess|\\.htpasswd|composer\\.json|composer\\.lock)",
+    "targets": [
+      "URI"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "Sensitive Laravel files"
+  },
+  {
+    "id": "laravel-enterprise-06",
+    "phase": 2,
+    "pattern": "(?i)union(?:\\s|%20|\\+|/\\*.*?\\*/)+select",
+    "targets": [
+      "URI",
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-07",
+    "phase": 2,
+    "pattern": "(?i)select\\s+.*from",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-08",
+    "phase": 2,
+    "pattern": "(?i)insert\\s+into",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-09",
+    "phase": 2,
+    "pattern": "(?i)drop\\s+table",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-10",
+    "phase": 2,
+    "pattern": "(?i)update\\s+.*set",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-11",
+    "phase": 2,
+    "pattern": "(?i)(?:^|[^a-z0-9_])or(?:\\s|%20|\\+)+1(?:\\s|%20|\\+)*=(?:\\s|%20|\\+)*1(?:$|[^a-z0-9_])",
+    "targets": [
+      "URI",
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-12",
+    "phase": 2,
+    "pattern": "(?i)sleep\\(",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-13",
+    "phase": 2,
+    "pattern": "(?i)benchmark\\(",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-14",
+    "phase": 2,
+    "pattern": "(?i)waitfor\\s+delay",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SQL injection pattern"
+  },
+  {
+    "id": "laravel-enterprise-15",
+    "phase": 2,
+    "pattern": "(?i)<script",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "XSS payload"
+  },
+  {
+    "id": "laravel-enterprise-16",
+    "phase": 2,
+    "pattern": "(?i)javascript:",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "XSS payload"
+  },
+  {
+    "id": "laravel-enterprise-17",
+    "phase": 2,
+    "pattern": "(?i)onerror=",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "XSS payload"
+  },
+  {
+    "id": "laravel-enterprise-18",
+    "phase": 2,
+    "pattern": "(?i)onload=",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "XSS payload"
+  },
+  {
+    "id": "laravel-enterprise-19",
+    "phase": 2,
+    "pattern": "(?i)alert\\(",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "XSS payload"
+  },
+  {
+    "id": "laravel-enterprise-20",
+    "phase": 2,
+    "pattern": "(?i)document\\.cookie",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "XSS payload"
+  },
+  {
+    "id": "laravel-enterprise-21",
+    "phase": 2,
+    "pattern": "(?i)eval\\(",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "XSS payload"
+  },
+  {
+    "id": "laravel-enterprise-22",
+    "phase": 2,
+    "pattern": "(?i)<svg",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "XSS payload"
+  },
+  {
+    "id": "laravel-enterprise-23",
+    "phase": 2,
+    "pattern": "(?i)\\b(curl|wget|bash|sh|nc|python|perl|php|powershell)\\b",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Command execution attempt"
+  },
+  {
+    "id": "laravel-enterprise-24",
+    "phase": 2,
+    "pattern": "(?i)(?:;|&&|\\|\\|)\\s*(?:bash|sh|cmd|powershell|curl|wget|nc|python|perl|php)\\b",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Command execution attempt"
+  },
+  {
+    "id": "laravel-enterprise-25",
+    "phase": 2,
+    "pattern": "`[^`]+`",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Command execution attempt"
+  },
+  {
+    "id": "laravel-enterprise-26",
+    "phase": 2,
+    "pattern": "127\\.0\\.0\\.1|localhost",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "SSRF localhost"
+  },
+  {
+    "id": "laravel-enterprise-27",
+    "phase": 2,
+    "pattern": "169\\.254\\.169\\.254",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "Cloud metadata SSRF"
+  },
+  {
+    "id": "laravel-enterprise-28",
+    "phase": 2,
+    "pattern": "(?i)<\\?php",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "PHP webshell upload"
+  },
+  {
+    "id": "laravel-enterprise-29",
+    "phase": 2,
+    "pattern": "(?i)shell_exec|passthru|system\\(",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "Webshell functions"
+  },
+  {
+    "id": "laravel-enterprise-30",
+    "phase": 2,
+    "pattern": "\\{\\{.*\\}\\}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Template injection"
+  },
+  {
+    "id": "laravel-enterprise-31",
+    "phase": 2,
+    "pattern": "\\$\\{.*\\}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Expression injection"
+  },
+  {
+    "id": "laravel-enterprise-32",
+    "phase": 2,
+    "pattern": "\\$\\{jndi:(ldap|rmi|dns|http)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "Log4Shell exploit"
+  },
+  {
+    "id": "laravel-enterprise-33",
+    "phase": 1,
+    "pattern": "(?i)transfer-encoding.*chunked.*content-length",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "HTTP request smuggling"
+  },
+  {
+    "id": "laravel-enterprise-34",
+    "phase": 2,
+    "pattern": "(?i)(redirect|url|next)=https?://",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "MEDIUM",
+    "action": "block",
+    "score": 5,
+    "description": "Open redirect attempt"
+  },
+  {
+    "id": "laravel-enterprise-35",
+    "phase": 2,
+    "pattern": "(?i)__schema|__type",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 3,
+    "description": "GraphQL introspection"
+  },
+  {
+    "id": "laravel-enterprise-36",
+    "phase": 1,
+    "pattern": "^[1-9][0-9]{7,}$",
+    "targets": [
+      "HEADERS:Content-Length"
+    ],
+    "severity": "MEDIUM",
+    "action": "log",
+    "score": 4,
+    "description": "Large payload"
+  },
+  {
+    "id": "laravel-enterprise-37",
+    "phase": 2,
+    "pattern": "(?i)base64_decode",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Generic exploit payload"
+  },
+  {
+    "id": "laravel-enterprise-38",
+    "phase": 2,
+    "pattern": "(?i)cmd=",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Generic exploit payload"
+  },
+  {
+    "id": "laravel-enterprise-39",
+    "phase": 2,
+    "pattern": "(?i)/bin/sh",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Generic exploit payload"
+  },
+  {
+    "id": "laravel-enterprise-40",
+    "phase": 2,
+    "pattern": "(?i)whoami",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Generic exploit payload"
+  },
+  {
+    "id": "laravel-enterprise-41",
+    "phase": 2,
+    "pattern": "(?i)cat\\s+/etc/passwd",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 7,
+    "description": "Generic exploit payload"
+  },
+  {
+    "id": "laravel-enterprise-42",
+    "phase": 1,
+    "pattern": "(?i)(?:^|/)(?:_ignition|telescope|horizon)(?:/|$)|(?:^|/)phpinfo\\.php$|(?:^|/)server-status(?:/|$)",
+    "targets": [
+      "URI"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "Block known Laravel/PHP debug and introspection endpoints"
+  },
+  {
+    "id": "laravel-enterprise-43",
+    "phase": 2,
+    "pattern": "(?i)(?:%27|%22|%23|--|%2d%2d|%3b|;)(?:\\s|%20|\\+)*(?:or|and)(?:\\s|%20|\\+)+[0-9a-z_]+(?:\\s|%20|\\+)*=(?:\\s|%20|\\+)*[0-9a-z_]+",
+    "targets": [
+      "URI",
+      "ARGS"
+    ],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 8,
+    "description": "Detect encoded SQLi boolean and comment-based bypass patterns"
+  },
+  {
+    "id": "laravel-enterprise-44",
+    "phase": 2,
+    "pattern": "(?i)(?:\\.env(?:\\.|$)|composer\\.(?:json|lock)|\\.git(?:/|%2f)|vendor/phpunit|phpunit/src/util/php/eval-stdin\\.php)",
+    "targets": [
+      "URI"
+    ],
+    "severity": "CRITICAL",
+    "action": "block",
+    "score": 9,
+    "description": "Block sensitive Laravel/PHP file disclosure probes including encoded path variants"
+  }
+]

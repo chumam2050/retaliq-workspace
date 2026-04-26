@@ -1,0 +1,24 @@
+services:
+    project_name:
+        image: 'choerul/project_name'
+        container_name: project_name
+        build:
+            context: '.'
+            dockerfile: 'docker/production/Dockerfile'
+        restart: unless-stopped
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '${APP_PORT}:${APP_PORT}'
+        volumes:
+            - './storage:/var/www/html/storage'
+            - '.env:/var/www/html/.env'
+        networks:
+            retaliq-net:
+                aliases:
+                    - project_name
+networks:
+    retaliq-net:
+        name: retaliq-net
+        external: true
+

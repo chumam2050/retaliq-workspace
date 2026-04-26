@@ -1,0 +1,109 @@
+domain: ${DOMAIN_NAME:-localhost}
+
+env_file:
+    - services/.env
+    
+apps:
+    - retaliq:
+        - architecture: monolithic
+        - hostname: ${DOMAIN_NAME:-localhost}
+        - description: Retaliq applications.
+        - stack:
+            - platform: laravel
+            - port:
+                - app: 11001
+                - vite: 5171
+        - services:
+            - postgres
+    - umkm:
+        - architecture: monolithic
+        - hostname: umkm.${DOMAIN_NAME:-localhost}
+        - description: A microservices-based application for managing small and medium enterprises.
+        - stack:
+            - platform: laravel
+            - port:
+                - app: 11002
+                - vite: 5172
+        - services:
+            - postgres
+            - redis
+            - soketi
+
+    - minierp:
+        - architecture: decoupled
+        - hostname: minierp.${DOMAIN_NAME:-localhost}
+        - description: A modular ERP system for small and medium enterprises.
+        - stack:
+            backend: 
+                - platform: node
+                - port: 
+                    - app: 10000
+            frontend:
+                - platform: react
+                - port:
+                    - vite: 5173
+                    - app: 11000
+        - services:
+            - postgres
+
+services:
+    - minio:
+        - name: MinIO server
+        - description: A high-performance, S3 compatible object storage server.
+        - hostname: minio.${DOMAIN_NAME:-localhost}
+        - port: 9000
+    - s3:
+        - name: S3 API
+        - description: An S3 compatible API for object storage.
+        - hostname: s3.${DOMAIN_NAME:-localhost}
+        - port: 9001
+    - ws:
+        - name: WebSocket server
+        - description: A server for handling WebSocket connections.
+        - hostname: ws.${DOMAIN_NAME:-localhost}
+        - port: 6001
+    - stalwart:
+        - name: Mail server
+        - description: A server for sending and receiving emails.
+        - hostname: stalwart.${DOMAIN_NAME:-localhost}
+        - port: 8081
+    - webmail:
+        - name: Webmail client
+        - description: A web-based email client for accessing the mail server.
+        - hostname: webmail.${DOMAIN_NAME:-localhost}
+        - port: 8001
+    - log:
+        - name: Log server
+        - description: An open-source error tracking and monitoring tool.
+        - hostname: log.${DOMAIN_NAME:-localhost}
+        - port: 8082
+    - domain:
+        - name: Domain helper
+        - description: External service that updates host resolution (development only).
+        - hostname: null     # not managed by CLI
+        - port: 8888         # service listens here by default
+    - mariadb:
+        - name: MariaDB
+        - description: A popular open-source relational database management system.
+        - hostname: null
+        - port: 3306
+    - redis:
+        - name: Redis
+        - description: An in-memory data structure store, used as a database, cache, and message broker.
+        - hostname: null
+        - port: 6379
+    - postgres:
+        - name: PostgreSQL
+        - description: A powerful, open-source object-relational database system.
+        - hostname: null
+        - port: 5432      # service listens here by default
+    - rabbitmq:
+        - name: RabbitMQ
+        - description: Open-source message broker with AMQP and management UI.
+        - hostname: rabbitmq.${DOMAIN_NAME:-localhost}
+        - port: 15672
+    - mailpit:
+        - name: Mailpit
+        - description: SMTP mail catcher with web UI for development email testing.
+        - hostname: mailpit.${DOMAIN_NAME:-localhost}
+        - port: 8025
