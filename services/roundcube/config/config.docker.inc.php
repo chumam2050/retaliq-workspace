@@ -3,7 +3,7 @@
   $config['db_dsnr'] = '';
   $config['imap_host'] = 'ssl://stalwart:993';
   $config['smtp_host'] = 'ssl://stalwart:465';
-  $config['username_domain'] = 'retaliq.test';
+  $config['username_domain'] = 'development.test';
   $config['temp_dir'] = '/tmp/roundcube-temp';
   $config['skin'] = 'elastic';
   $config['request_path'] = '/';

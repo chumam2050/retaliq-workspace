@@ -1,4 +1,4 @@
-FROM choerul/base-php:8.4
+FROM choerul/php-fpm:8.4
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
